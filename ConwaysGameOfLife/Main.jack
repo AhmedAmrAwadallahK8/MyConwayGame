@@ -1,0 +1,22 @@
+/** Creates and runs the Conway game. */
+class Main {
+    function void main() {
+        var RunConway game;
+        var int end_logic;
+        let end_logic = 1;
+        while(~(end_logic = 0)) {
+            //Clear the Screen
+            do Screen.setColor(false);
+            do Screen.drawRectangle(0, 0, 511, 255);
+            //Create a game based on the specified size setting
+            if (end_logic = 1) {let game = RunConway.new(14); }
+            if (end_logic = 2) {let game = RunConway.new(30); }
+            if (end_logic = 3) {let game = RunConway.new(62); }
+            //Run the game
+            let end_logic = game.run();
+
+            do game.dispose();
+        }
+        return;
+    }
+}

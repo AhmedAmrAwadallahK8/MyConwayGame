@@ -1,0 +1,359 @@
+/** Represents a Cell object that has 0 connections to neighbor cells. */
+class Cell {
+    field int x, y; //Screen location of cell
+    field int size;
+    field boolean alive;
+    field boolean nextAlive;
+    field int n, nw, w, sw, s, se, e, ne;
+    field int gen;
+    field boolean drawn;
+     
+    /* Construct an unconnected Cell. */
+    constructor Cell new(int Ax, int Ay, int Asize) {
+        let x = Ax;
+        let y = Ay;
+        let size = Asize;
+        let gen = 0;
+        let alive = false;
+        let nextAlive = false;
+        let drawn = false;
+        let n = 0;
+        let nw = 0;
+        let w = 0;
+        let sw = 0;
+        let s = 0;
+        let se = 0;
+        let e = 0;
+        let ne = 0;
+        do updateCellScreen();
+        return this;
+    }
+
+    /** Accessors */
+    method boolean reportNullN(){
+        if (n=0){return true; }
+        return false;
+    }
+
+    method boolean reportNullNW(){
+        if (nw=0){return true; }
+        return false;
+    }
+
+    method boolean reportNullW(){
+        if (w=0){return true; }
+        return false;
+    }
+
+    method boolean reportNullSW(){
+        if (sw=0){return true; }
+        return false;
+    }
+
+    method boolean reportNullS(){
+        if (s=0){return true; }
+        return false;
+    }
+
+    method boolean reportNullSE(){
+        if (se=0){return true; }
+        return false;
+    }
+
+    method boolean reportNullE(){
+        if (e=0){return true; }
+        return false;
+    }
+    
+    method boolean reportNullNE(){
+        if (ne=0){return true; }
+        return false;
+    }
+
+    method int reportX() {
+        return x;
+    }
+
+    method int reportY() {
+        return y;
+    }
+
+     method int reportN() {
+        return n;
+    }
+
+     method int reportNW() {
+        return nw;
+    }
+
+    method int reportW() {
+        return w;
+    }
+
+    method int reportSW() {
+        return sw;
+    }
+
+    method int reportS() {
+        return s;
+    }
+
+    method int reportSE() {
+        return se;
+    }
+
+    method int reportE() {
+        return e;
+    }
+
+    method int reportNE() {
+        return ne;
+    }
+
+    method Cell reportCell(int pointer) {
+        return pointer;
+    }
+
+    method boolean reportState() {
+        return alive;
+    }
+
+    method boolean reportNextState() {
+        return nextAlive;
+    }
+
+    /** Setter methods. */
+    method void alive() {
+        let alive = true;
+        return;
+    }
+
+    method void nextAlive() {
+        let nextAlive = true;
+        return;
+    }
+
+    method void dead() {
+        let alive = false;
+        return;
+    }
+
+    method void nextDead() {
+        let nextAlive = false;
+        return;
+    }
+
+    method void informS(int cell) {
+        let s = cell;
+        return;
+    }
+
+    method void informSE(int cell) {
+        let se = cell;
+        return;
+    }
+
+    method void informE(int cell) {
+        let e = cell;
+        return;
+    }
+
+    method void informNE(int cell) {
+        let ne = cell;
+        return;
+    }
+
+    method void informN(int cell) {
+        let n = cell;
+        return;
+    }
+
+    method void informNW(int cell) {
+        let nw = cell;
+        return;
+    }
+
+    method void informW(int cell) {
+        let w = cell;
+        return;
+    }
+
+    method void informSW(int cell){
+        let sw = cell;
+        return;
+    }
+
+    method void setDrawnFalse(){
+        let drawn = false;
+        return;
+    }
+
+    /** Draw a Cell object regardless of its Alive or Drawn state. */
+    method void noLogicDraw() {
+        do Screen.setColor(true);
+        do Screen.drawRectangle(x, y, x+size, y+size);
+        return;
+    }
+
+    /** Draw a Cell object if it is not currently drawn. If it is currently drawn clear the screen location. */
+    method void drawCellTemp() {
+        if(drawn) {
+            do Screen.setColor(false);
+            do Screen.drawRectangle(x, y, x+size, y+size);
+        }
+        if(~drawn) {
+            do Screen.setColor(true);
+            do Screen.drawRectangle(x, y, x+size, y+size);
+        }
+        let drawn = ~drawn;
+        return;
+    }
+
+    /** Renders the next generation and then sets the alive state to be the next generations state. */
+    method void updateCellScreen() {
+        if (nextAlive) {
+            do Screen.setColor(true);
+            do Screen.drawRectangle(x, y, x+size, y+size);
+        }
+        if (~nextAlive) {
+            do Screen.setColor(false);
+            do Screen.drawRectangle(x, y, x+size, y+size);
+        }
+        let alive = nextAlive;
+        return;
+    }
+
+    /** Calculates whether a cell will be alive or dead in the next generation. Then sets their nextAlive state accordingly. */
+    method void calcNextGen(int grid_gen) { //Need to update a temporary alive state first then update the cell when the entire grid has been updated
+        var int livingNb;
+        if (~(grid_gen=gen)){return; }
+        let livingNb = countLivingNb();
+        if (livingNb < 2) {do nextDead(); }
+        if (livingNb > 3) {do nextDead(); }
+        if (livingNb = 3) {do nextAlive(); }
+        if (alive) {
+            if (livingNb = 2) {do nextAlive(); }   
+        }
+        let gen = gen + 1;
+        return;
+    }
+
+    /** Counts how many of a cells neighbors are alive. */
+    method int countLivingNb() {
+        var int count;
+        var Cell n_cell, nw_cell, w_cell, sw_cell, s_cell, se_cell, e_cell, ne_cell;
+        let n_cell = reportN();
+        let nw_cell = reportNW();
+        let w_cell = reportW();
+        let sw_cell = reportSW();
+        let s_cell = reportS();
+        let se_cell = reportSE();
+        let e_cell = reportE();
+        let ne_cell = reportNE();
+        let count = 0;
+
+        if (n_cell.reportState()){let count = count + 1; }
+        if (nw_cell.reportState()){let count = count + 1; }
+        if (w_cell.reportState()){let count = count + 1; }
+        if (sw_cell.reportState()){let count = count + 1; }
+        if (s_cell.reportState()){let count = count + 1; }
+        if (se_cell.reportState()){let count = count + 1; }
+        if (e_cell.reportState()){let count = count + 1; }
+        if (ne_cell.reportState()){let count = count + 1; }
+        return count;
+    }
+    
+    /** Creates and informs of a Cell North of this current cell and informs the newly created cell that the current cell is South of it. */
+    method int createN(int Ax, int Ay, int Asize) {
+        
+        var Cell current;
+        do Sys.wait(5);
+        let n = Cell.new(Ax, Ay, Asize);
+        let current = reportCell(n);
+        do current.informS(this);
+        return 1;
+    }
+
+    /** Creates and informs of a Cell North West of this current cell and informs the newly created cell that the current cell is South East of it. */
+    method int createNW(int Ax, int Ay, int Asize) {
+        var Cell current;
+        do Sys.wait(5);
+        let nw = Cell.new(Ax, Ay, Asize);
+        let current = reportCell(nw);
+        do current.informSE(this);
+        return 1;
+    }
+
+    /** Creates and informs of a Cell West of this current cell and informs the newly created cell that the current cell is East of it. */
+    method int createW(int Ax, int Ay, int Asize) {
+
+        var Cell current;
+        do Sys.wait(5);
+        let w = Cell.new(Ax, Ay, Asize);
+        let current = reportCell(w);
+        do current.informE(this);
+        return 1;
+
+    }  
+
+    /** Creates and informs of a Cell South West of this current cell and informs the newly created cell that the current cell is North East of it. */
+    method int createSW(int Ax, int Ay, int Asize) {
+
+        var Cell current;
+        do Sys.wait(5);
+        let sw = Cell.new(Ax, Ay, Asize);
+        let current = reportCell(sw);
+        do current.informNE(this);
+        return 1;
+    }
+    
+    /** Creates and informs of a Cell South of this current cell and informs the newly created cell that the current cell is North of it. */
+    method int createS(int Ax, int Ay, int Asize) {
+
+        var Cell current;
+        do Sys.wait(5);
+        let s = Cell.new(Ax, Ay, Asize);
+        let current = reportCell(s);
+        do current.informN(this);
+        return 1;
+    }  
+
+    /** Creates and informs of a Cell South East of this current cell and informs the newly created cell that the current cell is North West of it. */
+    method int createSE(int Ax, int Ay, int Asize) {
+
+        var Cell current;
+        do Sys.wait(5);
+        let se = Cell.new(Ax, Ay, Asize);
+        let current = reportCell(se);
+        do current.informNW(this);
+        return 1;
+    }
+
+    /** Creates and informs of a Cell East of this current cell and informs the newly created cell that the current cell is West of it. */
+    method int createE(int Ax, int Ay, int Asize){
+
+        var Cell current;
+        do Sys.wait(5);
+        let e = Cell.new(Ax, Ay, Asize);
+        let current = reportCell(e);
+        do current.informW(this);
+        return 1;
+    }
+
+    /** Creates and informs of a Cell North East of this current cell and informs the newly created cell that the current cell is South West of it. */
+    method int createNE(int Ax, int Ay, int Asize) {
+
+        var Cell current;
+        do Sys.wait(5);
+        let ne = Cell.new(Ax, Ay, Asize);
+        let current = reportCell(ne);
+        do current.informSW(this);
+        return 1;
+    }
+    
+    /** Dispose this Cell. */
+    method void dispose() {
+        do Memory.deAlloc(this);
+        return;
+    }   
+}

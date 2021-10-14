@@ -1,0 +1,154 @@
+/**
+* Implements Conways Game of Life.
+* This is a simulation that follows the rules specified by Conways Game of Life.
+* While this is a simulation the user can interact with it through the following:
+* User can simply let the simulation run and it will display a 'Glider' organism moving accross the screen
+* User can speed up the simulataion by pressing 'F' and slow down the simulation by pressing 'S'
+* User can pause the simulation by pressing 'P', pausing the simulation will now allow the user to edit the map
+*   When paused a flashing cell will appear which indicates what cell is currently selected by the user
+*   The user can change their selected cell up, down, left, or right using their directional pad
+*   The selected cell can be killed or revived, when the game is unpaused these newly altered cells will impact the future of the simulation
+* User can change the size of Grid by pressing D, M or B. Pressing any of these buttons will destroy the current game and remake a new one.
+*   D creates a game with the default size setting
+*   M creates a game with the medium size setting
+*   B creates a game with the largest size setting
+* User can quit the game by pressing 'Q'
+*/
+
+class RunConway {
+    field Grid grid;
+    field int direction;
+    field int sim_speed;
+    field Cell selected_cell;
+    field int pause_time;
+    field int run_time;
+    field boolean revive;
+    field boolean kill;
+
+    /* Constructs RunConway. */
+    constructor RunConway new(int cell_size) {
+        /**
+        * Allowed cell sizes are 2, 6, 14, 30, 62, 126, 254 (Common Divisors of 512 and 256 subtracted by the spacing*2, Spacing is always 1)
+        * However, due to memory constraints and the current implementaion of code the lowest allowed cell_size is 14. Any lower will overload the RAM.
+        */
+        let grid = Grid.new(cell_size);
+        do grid.outputNextGen();
+        let sim_speed = 500;
+        let selected_cell = grid.reportOriginCell();
+        let revive = false;
+        let kill = false;
+        let pause_time = 0;
+        let run_time = 0;
+        return this;
+    }
+
+    /** Accessors. */
+    method int reportSpeed() {
+        return sim_speed;
+    }
+
+    /** Runs the simulation. */
+    method void runLife() { 
+        // a % b = a - (b * int(a/b)) Modulus Math Expression
+        if(run_time - (sim_speed*(run_time/sim_speed)) = 0) {
+            do grid.calcNextGen();
+            do grid.incGridGen();
+            do grid.outputNextGen();
+        }
+
+        /** 
+        * Purpose of run_time is to slow down the output without directly using Sys.wait. Sys.wait is stil necessary but large system wait times makes the
+        * program feel slow and unresponsive as it is waiting more often than iterating through the keyboard reading part of the program.
+        */
+        let run_time = run_time + 1;
+        if(run_time = 1000) {let run_time=0; } //Prevent run_time from getting too big
+        do Sys.wait(1);
+        return;
+    }
+
+    /** Runs the editing mode of the simulation. */
+    method void pauseLife() { 
+        // a % b = a - (b * int(a/b)) Modulus Math Expression
+        if(pause_time - (5*(pause_time/5)) = 0) {do selected_cell.drawCellTemp(); }
+
+        // Moves the selected cell in the target direction, updates drawn to false, and updates the cell to render based on its alive state.
+        if(direction = 1) {do selected_cell.updateCellScreen(); do selected_cell.setDrawnFalse(); let selected_cell = selected_cell.reportW(); do selected_cell.drawCellTemp(); }
+        if(direction = 2) {do selected_cell.updateCellScreen(); do selected_cell.setDrawnFalse(); let selected_cell = selected_cell.reportN(); do selected_cell.drawCellTemp(); }
+        if(direction = 3) {do selected_cell.updateCellScreen(); do selected_cell.setDrawnFalse(); let selected_cell = selected_cell.reportE(); do selected_cell.drawCellTemp(); }
+        if(direction = 4) {do selected_cell.updateCellScreen(); do selected_cell.setDrawnFalse(); let selected_cell = selected_cell.reportS(); do selected_cell.drawCellTemp(); }
+
+        //Updates the cells state
+        if(revive) {do selected_cell.nextAlive(); }
+        if(kill) {do selected_cell.nextDead(); }
+
+        //Similar purpose as run_time
+        let pause_time = pause_time + 1;
+        if(pause_time = 1000) {let pause_time=0; } //Prevent pause_time from getting too big
+        do Sys.wait(80);
+        return;
+    }
+
+    /** Runs the simulation. Handles user input and acts according to the implementation details above. */
+    method int run() {
+        var char key;
+        var boolean exit;
+        var boolean pause;
+        var int end_logic;
+        let exit = false;
+        let pause = false;
+        let end_logic = 0;
+
+        while(~exit) {
+            while(key = 0) { //Key is not currently pressed
+                let direction = 0; //When a key is not pressed reset these fields.
+                let revive = false;
+                let kill = false;
+                let key = Keyboard.keyPressed(); 
+                if (~pause) {do runLife(); } //Run the simulation
+                if (pause) {do pauseLife(); } //Run the editing mode of the simulation
+            }
+
+
+            if (key = 80) { let pause = ~pause; } //P is pressed
+            if (key = 81) {let exit = true; let end_logic = 0; } //Q is pressed
+            if (key = 70) { //F is pressed
+                let sim_speed = sim_speed - 200;
+                if (sim_speed<1) {let sim_speed = 1; } //Fastest Speed
+            } 
+            if (key = 83) { //S is pressed
+                let sim_speed = sim_speed + 200;
+                if (sim_speed > 1000) {let sim_speed = 1000; } //Lowest Speed(Since we do a modulus op this value has to be capped at the same value as run_times cap which is 300)
+                
+            } 
+            if (key = 130) {let direction = 1; } //Left Arrow
+            if (key = 131) {let direction = 2; } //Up Arrow
+            if (key = 132) {let direction = 3; } //Right Arrow
+            if (key = 133) {let direction = 4; } //Down Arrow
+            if (key = 82) {let revive = true; } //R is pressed
+            if (key = 75) {let kill = true; } //K is pressed
+            if (key = 68) {let exit = true; let end_logic = 1; } //D is pressed
+            if (key = 77) {let exit = true; let end_logic = 2; } //M is pressed
+            if (key = 66) {let exit = true; let end_logic = 3; } //B is pressed
+            
+
+            while(~(key = 0)) { // Key is currently Pressed
+                let key = Keyboard.keyPressed();
+                if (~pause) {do runLife(); }
+                if (pause) {do pauseLife(); }
+
+            }
+
+        }
+
+        
+
+        return end_logic;
+    }
+
+    /** Dispose this RunConway object and the Grid it created. */
+    method void dispose(){
+        do grid.dispose();
+        do Memory.deAlloc(this);
+        return;
+    }
+}

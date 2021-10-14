@@ -1,0 +1,448 @@
+/** Implements a Grid of connected cells */
+class Grid {
+    field int screen_width;
+    field int screen_height;
+    field int cell_size;
+    field int spacer_size;
+    field int grid_gen;
+    field int origin_cell;
+
+    /* Constructs a Grid. */
+    constructor Grid new(int Acell_size) {
+        var int current_cell_num;
+        let cell_size = Acell_size;
+        let spacer_size = 1;
+        let screen_width = 512;
+        let screen_height = 256;
+        let grid_gen = 0;
+        let origin_cell = Cell.new(1,1, cell_size);
+        do constructGrid(origin_cell);
+        return this;
+    }
+
+    /** Accessors */
+    method int reportOriginCell() {
+        return origin_cell;
+    }
+
+    method int reportGridGen() {
+        return grid_gen;
+    }
+
+    /** Increments the Grid's generation. */
+    method void incGridGen() {
+        let grid_gen = grid_gen+1;
+        return;
+    }
+
+    /** Calculates the state of the next Generation for each Cell in the Grid. */
+    method void calcNextGen() {
+        var Cell origin_cell;
+        var Cell width_origin_cell;
+        var Cell current_cell;
+        var int origin_counter, width_counter;
+        let origin_cell = reportOriginCell();
+        let width_origin_cell = reportOriginCell();
+        let current_cell = reportOriginCell();
+        let origin_counter = 0;
+        let width_counter = 0;
+        //The Grid is iterated through in a similar way that it was created. Start at origin and goes east. If width_origin_cell = current_cell then we go south instead
+        //This process is repeated until the origin_cell is encountered again.
+        while(origin_counter < 2) {
+            do current_cell.calcNextGen(reportGridGen());
+            if (current_cell = width_origin_cell) {
+                    let width_counter = width_counter + 1;
+                    if (width_counter > 1){
+                        let current_cell = current_cell.reportS(); 
+                        let width_origin_cell = current_cell;
+                        let width_counter = 0;
+                    }
+                    
+                }
+            if (width_counter = 1) {let current_cell = current_cell.reportE(); }
+            if (current_cell = origin_cell) {let origin_counter = origin_counter + 1; }
+        }
+        return;
+    }
+
+    /** Forces the cells to now redraw themselves based on the state of the next Generation. */
+    method void outputNextGen() {
+        var Cell origin_cell;
+        var Cell width_origin_cell;
+        var Cell current_cell;
+        var int origin_counter, width_counter;
+        let origin_cell = reportOriginCell();
+        let width_origin_cell = reportOriginCell();
+        let current_cell = reportOriginCell();
+        let origin_counter = 0;
+        let width_counter = 0;
+        //The Grid is iterated through in a similar way that it was created. Start at origin and goes east. If width_origin_cell = current_cell then we go south instead
+        //This process is repeated until the origin_cell is encountered again.
+        while(origin_counter < 2) {
+            do current_cell.updateCellScreen();
+            if (current_cell = width_origin_cell) {
+                    let width_counter = width_counter + 1;
+                    if (width_counter > 1){
+                        let current_cell = current_cell.reportS(); 
+                        let width_origin_cell = current_cell;
+                        let width_counter = 0;
+                    }
+                    
+                }
+            if (width_counter = 1) {let current_cell = current_cell.reportE(); }
+            if (current_cell = origin_cell) {let origin_counter = origin_counter + 1; }
+        }
+        return;
+    }
+
+    /** 
+    * Based on an origin cell and the dimensions of our screen a sequence of cells are created and connected to each other.
+    * This process is displayed visually to the user by progressively painted cells on the screen.
+    * The Grid supports wrapping from one side to the opposite.
+    * Grid is also initialized to a starting state to include a glider 'organism'.
+    */
+    method void constructGrid(int cell) {
+        var int origin_counter;
+        var int new_cell_count;
+        var int Ax, Ay;
+        var int t_Ax, t_Ay;
+        var int width_counter;
+        var Cell origin_cell;
+        var Cell width_origin_cell;
+        var Cell height_origin_cell;
+        var Cell current_cell;
+        var int width_boundary;
+        var int height_boundary;
+        var int full_cell_size;
+        let width_counter = 0;
+        let origin_cell = cell;
+        let width_origin_cell = cell;
+        let height_origin_cell = cell;
+        let current_cell = cell;
+        let origin_counter = 0;
+        let width_boundary = screen_width - (cell_size+2) - (cell_size+1);
+        let height_boundary = screen_height - (cell_size+2) - (cell_size+1);
+        let full_cell_size = cell_size + 2;
+
+        /**
+        * The following is the overall algorithm for creating the Grid.
+        * A Grid starts with the creation of an origin Cell in the top left corner of the screen.
+        * From this origin Cell the entire Grid is created.
+        *   This is done by starting at the origin creating/connecting cells then going 1 cell east. This process is repeated until the beginning of the row is
+        *   encountered again. When it is encountered again instead of going east we go south then repeat the process again. This is repeated until the true origin
+        *   cell is encountered again. If this occurs then the entire grid has been created and we exit the loop. The Grid supports wrapping so it's possible to
+        *   reach the origin by going south from the bottom left cell.
+        * Every cell looks around itself and sees if it has pointers to real cell objects for all 8 directions(N,NW,W,SW,S,SE,E,NE)
+        * If it doesn't have a pointer it creates a new cell and connects the current_cell to the new cell and the new cell to the current_cell
+        *   For example if a new cell was created north of the current_cell then the current_cell would set its n field variable to this new cell and the
+        *   new cell would set its s field variable to the current_cell.
+        * After the current_cell checks all 8 directions and creates new cells as necessary it will then enter another connection method
+        *   This secondary connection method is for connecting all the newly created cells to each other. These connections are all mediated by the current_cell
+        *   as the newly cell still has no connections to any other cell beyond the current_cell.
+        *       For example the cell directly north of the current_cell knows that directly south of it the current_cell exists but it doesn't know that 
+        *       to the West, South West, South East, and East are all cells that exist now because of the current_cell. These cells are the North West, 
+        *       West, East, and North East of the current_cell. Before moving on these connections must be made otherwise later on when these newly created cells
+        *       become the current_cell they will create cells in the same location thinking they have not already been created.
+        *   There is a redundancy present here as even if only one new cell is created all 8 connections will be remade.
+        * Once new cells/connections have been made it's time to update key parameters that decide how we iterate through the grid or finish when the grid is done.
+        *   The origin_counter lets us know when the entire process is done. origin_counter ticks to 1 when the entire first row has been created. The next time the origin is 
+        *   encountered is when the last row has finished and the current_cell is moved south. This ends up back at the origin.
+        *
+        *   The width_counter lets us know when an entire row has been iterated through. If the current_cell is equal to the width_origin_cell this increments by 1.
+        *   At the beginning of iterating through the row width_origin_cell and current_cell are equal so width_counter always starts at 1.
+        *   If width_counter=1 then move the current_cell east by 1 cell. This process is repeated until the width_origin_cell is encountered a second time.
+        *   If width_counter=2 then move the current_cell south by 1 cell and move the width_origin_cell south by 1 cell. Width counter is also set to 0 and the process restarts.
+        * Lastly there is one more check that needs to be done. As the current_cell approaches the right edge of the screen it will encounter cells that were already created
+        * by the other side of the map. The current_cell will have no idea these cells exist since connections only occur between neighboring cells.
+        * These cells at the boundary are technically complete but they dont know it yet so there needs to be some boundary stitching. This unique case is covered in two ways.
+        * First we check if we are at the boundary by positionally checking that we are the distance of two cells away.
+        *   If we are then we perform the necessary connections using the width_origin_cell as it knows all of these cells near the boundary. These boundary cells are 
+        *   then also connected to the current_cell.
+        * A similar process is preformed at the bottom of the screen to connect the top and bottom cells together.
+        */
+        while (origin_counter<2) { //If the origin_cell is encountered more than 2 times by the current_cell the grid is complete so exit the loop
+            let new_cell_count = 0;
+            let Ax = current_cell.reportX();
+            let Ay = current_cell.reportY();
+            //Initializes a Starting State of the simulation:
+            //Glider
+            //These are doubly nested if statements. Works similar to if(X and Y) {do someMethod; }
+            if(Ax=(1+(full_cell_size))) { if(Ay=(1+(full_cell_size))) {do current_cell.nextAlive(); do current_cell.updateCellScreen(); }}
+            if(Ax=(1+(full_cell_size*2))) { if(Ay=(1+(full_cell_size*2))) {do current_cell.nextAlive(); do current_cell.updateCellScreen(); }}
+            if(Ax=1) { if(Ay=(1+(full_cell_size*3))) {do current_cell.nextAlive(); do current_cell.updateCellScreen(); }}
+            if(Ax=(1+(full_cell_size))) { if(Ay=(1+(full_cell_size*3))) {do current_cell.nextAlive(); do current_cell.updateCellScreen(); }}
+            if(Ax=(1+(full_cell_size*2))) { if(Ay=(1+(full_cell_size*3))) {do current_cell.nextAlive(); do current_cell.updateCellScreen(); }}
+
+            //Render the cells temporarily regardless of state, purpose of this is just to give a loading screen experience.
+            do current_cell.noLogicDraw();
+
+            //If the side of the grid is encountered the cells created from the left side of the grid need to be connected to the current_cell and vice versa.
+            if (Ax = width_boundary) {
+                do connectWidth(width_origin_cell, current_cell);
+            }
+
+            //If the bottom of the grid is encountered the cells created from the top side of the grid need to be connected to the current_cell and vice versa
+            if (Ay = height_boundary) {
+                do connectHeight(height_origin_cell, current_cell);
+                let height_origin_cell = height_origin_cell.reportE();
+            }
+
+            //The 8 if statements below check the pointers to all the cells around the current cell. If the pointer is null a new cell needs to be created.
+            if(current_cell.reportNullN()) {
+                let t_Ax = Ax;
+                let t_Ay = Ay-(cell_size+2);
+                if(t_Ay < 0) {do current_cell.createN(t_Ax, screen_height-(cell_size+1), cell_size); }
+                if(t_Ay > 0) {do current_cell.createN(t_Ax, t_Ay, cell_size); }
+                let new_cell_count = new_cell_count + 1;
+            }
+            if(current_cell.reportNullNW()){
+                let t_Ax = Ax-(cell_size+2);
+                let t_Ay = Ay-(cell_size+2);
+                if(t_Ay < 0) {
+                    if(t_Ax < 0) {do current_cell.createNW(screen_width-(cell_size+1), screen_height-(cell_size+1), cell_size); }
+                    if(t_Ax > 0) {do current_cell.createNW(t_Ax, screen_height-(cell_size+1), cell_size); } 
+                }
+                if(t_Ay > 0) {
+                    if(t_Ax < 0) {do current_cell.createNW(screen_width-(cell_size+1), t_Ay, cell_size); }
+                    if(t_Ax > 0) {do current_cell.createNW(t_Ax, t_Ay, cell_size); } 
+                }
+                let new_cell_count = new_cell_count + 1;
+            }
+            if(current_cell.reportNullW()){
+                let t_Ax = Ax-(cell_size+2);
+                let t_Ay = Ay;
+                if(t_Ax < 0) {do current_cell.createW(screen_width-(cell_size+1), t_Ay, cell_size); }
+                if(t_Ax > 0) {do current_cell.createW(t_Ax, t_Ay, cell_size); }
+                let new_cell_count = new_cell_count + 1;
+            }
+            if(current_cell.reportNullSW()){
+                let t_Ax = Ax-(cell_size+2);
+                let t_Ay = Ay+(cell_size+2);
+                if(t_Ay > screen_height) {
+                    if(t_Ax < 0) {do current_cell.createSW(screen_width-(cell_size+1), 1, cell_size); }
+                    if(t_Ax > 0) {do current_cell.createSW(t_Ax, 1, cell_size); } 
+                }
+                if(t_Ay < screen_height) {
+                    if(t_Ax < 0) {do current_cell.createSW(screen_width-(cell_size+1), t_Ay, cell_size); }
+                    if(t_Ax > 0) {do current_cell.createSW(t_Ax, t_Ay, cell_size); } 
+                }
+                let new_cell_count = new_cell_count + 1;
+            }
+            if(current_cell.reportNullS()){
+                let t_Ax = Ax;
+                let t_Ay = Ay+(cell_size+2);
+                if(t_Ay > screen_height) {do current_cell.createS(t_Ax, 1, cell_size); }
+                if(t_Ay < screen_height) {do current_cell.createS(t_Ax, t_Ay, cell_size); }
+                let new_cell_count = new_cell_count + 1;
+            }
+
+            if(current_cell.reportNullSE()){
+                let t_Ax = Ax+(cell_size+2);
+                let t_Ay = Ay+(cell_size+2);
+                if(t_Ay > screen_height) {
+                    if(t_Ax > screen_width) {do current_cell.createSE(1, 1, cell_size); }
+                    if(t_Ax < screen_width) {do current_cell.createSE(t_Ax, 1, cell_size); } 
+                }
+                if(t_Ay < screen_height) {
+                    if(t_Ax > screen_width) {do current_cell.createSE(1, t_Ay, cell_size); }
+                    if(t_Ax < screen_width) {do current_cell.createSE(t_Ax, t_Ay, cell_size); } 
+                }
+                let new_cell_count = new_cell_count + 1;
+            }
+
+            if(current_cell.reportNullE()){
+                let t_Ax = Ax+(cell_size+2);
+                let t_Ay = Ay;
+
+                if(t_Ax > screen_width) {do current_cell.createE(1, t_Ay, cell_size); }
+                if(t_Ax < screen_width) {do current_cell.createE(t_Ax, t_Ay, cell_size); }
+                let new_cell_count = new_cell_count + 1;
+
+            }
+
+            if(current_cell.reportNullNE()){
+                let t_Ax = Ax+(cell_size+2);
+                let t_Ay = Ay-(cell_size+2);
+                if(t_Ay < 0) {
+                    if(t_Ax > screen_width) {do current_cell.createNE(1, screen_height-(cell_size+1), cell_size); }
+                    if(t_Ax < screen_width) {do current_cell.createNE(t_Ax, screen_height-(cell_size+1), cell_size); } 
+                }
+                if(t_Ay > 0) {
+                    if(t_Ax > screen_width) {do current_cell.createNE(1, t_Ay, cell_size); }
+                    if(t_Ax < screen_width) {do current_cell.createNE(t_Ax, t_Ay, cell_size); } 
+                }
+                let new_cell_count = new_cell_count + 1;
+            }
+
+            //If a new cell was created connect this new cell to the current cell and vice versa
+            if (new_cell_count > 0) {do connectNewCells(current_cell); }
+                
+            //If we encounter the width_origin_cell twice then that means weve looped completely through a row so we go south one cell instead of going east.
+            if (current_cell = width_origin_cell) {
+                let width_counter = width_counter + 1;
+                if (width_counter > 1){
+                    let current_cell = current_cell.reportS(); 
+                    let width_origin_cell = current_cell;
+                    let width_counter = 0;
+                }
+                
+            }
+
+            //Go east if we havent encountered the edge twice
+            if (width_counter = 1) {let current_cell = current_cell.reportE(); }
+            if (current_cell = origin_cell) {let origin_counter = origin_counter + 1; }
+        }
+        return;
+
+
+    }
+
+    /** Connects the cells on the right edge of the screen to the current cell and vice versa. */
+    method void connectWidth(Cell o, Cell c) {
+        var Cell mirror;
+        let mirror = o.reportW();
+        do c.informSE(o.reportSW());
+        do c.informE(o.reportW());
+        do c.informNE(o.reportNW());
+        do mirror.informSW(c.reportS());
+        do mirror.informW(c);
+        do mirror.informNW(c.reportN());
+
+
+        return;
+    }
+
+    /** Connects the cells on the bottom edge of the screen to the current cell and vice versa. */
+    method void connectHeight(Cell o, Cell c) {
+        var Cell mirror;
+        let mirror = o.reportN();
+        do c.informSW(o.reportNW());
+        do c.informS(o.reportN());
+        do c.informSE(o.reportNE());
+        do mirror.informNE(c.reportE());
+        do mirror.informN(c);
+        do mirror.informNW(c.reportW());
+        return;
+    }
+
+    /** Connects newly created cells around our current cell to the other newly created cells or old cells around the current cell. */
+    method void connectNewCells(Cell cell) {
+        var Cell origin_cell;
+        let origin_cell = cell;
+        do connectN(origin_cell, origin_cell.reportN());
+        do connectNW(origin_cell, origin_cell.reportNW());
+        do connectW(origin_cell, origin_cell.reportW());
+        do connectSW(origin_cell, origin_cell.reportSW());
+        do connectS(origin_cell, origin_cell.reportS());
+        do connectSE(origin_cell, origin_cell.reportSE());
+        do connectE(origin_cell, origin_cell.reportE());
+        do connectNE(origin_cell, origin_cell.reportNE());
+        return;
+
+    }
+
+    /** Connects the cell North of the current cell to neighboring cells */
+    method void connectN(Cell o, Cell north) {
+        do north.informW(o.reportNW());
+        do north.informSW(o.reportW());
+        do north.informSE(o.reportE());
+        do north.informE(o.reportNE());
+        return;
+    }
+
+    /** Connects the cell North West of the current cell to neighboring cells */
+    method void connectNW(Cell o, Cell north_west) {
+        do north_west.informS(o.reportW());
+        do north_west.informE(o.reportN());
+        return;
+
+    }
+
+    /** Connects the cell West of the current cell to neighboring cells */
+    method void connectW(Cell o, Cell west) {
+        do west.informS(o.reportSW());
+        do west.informSE(o.reportS());
+        do west.informNE(o.reportN());
+        do west.informN(o.reportNW());
+        return;
+    }
+
+    /** Connects the cell South West of the current cell to neighboring cells */
+    method void connectSW(Cell o, Cell south_west) {
+        do south_west.informE(o.reportS());
+        do south_west.informN(o.reportW());
+        return;
+
+    }
+
+    /** Connects the cell South of the current cell to neighboring cells */
+    method void connectS(Cell o, Cell south) {
+        do south.informE(o.reportSE());
+        do south.informNE(o.reportE());
+        do south.informNW(o.reportW());
+        do south.informW(o.reportSW());
+        return;
+
+    }
+
+    /** Connects the cell South East of the current cell to neighboring cells */
+    method void connectSE(Cell o, Cell south_east) {
+        do south_east.informN(o.reportE());
+        do south_east.informW(o.reportS());
+        return;
+    }
+
+    /** Connects the cell East of the current cell to neighboring cells */
+    method void connectE(Cell o, Cell east) {
+        do east.informN(o.reportNE());
+        do east.informNW(o.reportN());
+        do east.informSW(o.reportS());
+        do east.informS(o.reportSE());
+        return;
+    }
+
+    /** Connects the cell North East of the current cell to neighboring cells */
+    method void connectNE(Cell o, Cell north_east) {
+        do north_east.informW(o.reportN());
+        do north_east.informS(o.reportE());
+        return;
+    }
+
+    
+    /** Disposes a Grid object and the Cell objects it created. */
+    method void dispose() {
+        do disposeAllCells();
+        do Memory.deAlloc(this);
+        return;
+    }
+
+    /** Disposes the Cell objects created by a Grid object. */
+    method void disposeAllCells() {
+        var Cell origin, current, width_origin, temp_c;
+        var int end_dispose;
+        let origin = reportOriginCell();
+        let current = origin.reportNW();
+        let width_origin = origin.reportN();
+        let end_dispose = 0;
+        while(end_dispose=0) {
+            if(current=origin) {
+                let end_dispose = 1;
+                do Memory.deAlloc(current);
+                return;
+            }
+            if(~(current=width_origin)) {
+                let temp_c = current.reportW();
+                do Memory.deAlloc(current);
+
+            }
+            if(current=width_origin) {
+                let temp_c = width_origin.reportNW();
+                let width_origin = width_origin.reportN();
+                do Memory.deAlloc(current);
+            }
+            let current = temp_c;
+        }
+        return;
+    }
+
+}
